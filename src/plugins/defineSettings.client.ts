@@ -21,9 +21,6 @@ const defineSettings = () => {
   if (!mergedStore.accessToken && config.public.mapboxToken) {
     mergedStore.accessToken = config.public.mapboxToken
   }
-  if (!mergedStore.accessTokenMT && config.public.maptilerToken) {
-    mergedStore.accessTokenMT = config.public.maptilerToken
-  }
 
   return mergedStore
 }
@@ -34,9 +31,6 @@ const resetSettings = () => {
 
   if (!store.accessToken && config.public.mapboxToken) {
     store.accessToken = config.public.mapboxToken
-  }
-  if (!store.accessTokenMT && config.public.maptilerToken) {
-    store.accessTokenMT = config.public.maptilerToken
   }
 
   return store
