@@ -1,5 +1,4 @@
-import type { Settings, Extent, ProgressData } from '~/types/types'
-import type { FetchError } from 'ofetch'
+import type { Settings, Extent, ProgressData, FetchResult } from '~/types/types'
 import * as turf from '@turf/turf'
 import type { Geometry, Position } from 'geojson'
 import { VectorTile, Point } from 'mapbox-vector-tile'
@@ -15,11 +14,6 @@ import RBush from 'rbush'
  */
 
 /** */
-
-type T = {
-  data: Blob | undefined
-  error: FetchError<any> | undefined
-}
 
 interface BBoxItem extends RBush.BBox {
   minX: number
@@ -329,7 +323,7 @@ export const getWaterMap = async (
 
     const totalTiles = tileCount * tileCount
     progressCallback({ type: 'total', data: totalTiles })
-    const tiles = new Array<Promise<T>>(totalTiles)
+    const tiles = new Array<Promise<FetchResult<Blob>>>(totalTiles)
     // fetch tiles
     for (let y = 0; y < tileCount; y++) {
       for (let x = 0; x < tileCount; x++) {
@@ -340,10 +334,10 @@ export const getWaterMap = async (
     }
     const tileList = await Promise.allSettled(tiles)
 
-    const processTiles = async (list: PromiseSettledResult<T>[]) => {
+    const processTiles = async (list: PromiseSettledResult<FetchResult<Blob>>[]) => {
       const tilePromises = list.map(async (tileResult, index) => {
-        if (tileResult.status === 'fulfilled') {
-          const arrayBuffer = await tileResult.value.data?.arrayBuffer()
+        if (tileResult.status === 'fulfilled' && tileResult.value.status === 'success') {
+          const arrayBuffer = await tileResult.value.data.arrayBuffer()
           if (arrayBuffer) {
             // set position of tiles
             const tile = new VectorTile(new Uint8Array(arrayBuffer))

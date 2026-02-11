@@ -3,6 +3,9 @@ import stylistic from '@stylistic/eslint-plugin'
 
 export default withNuxt(
   {
+    ignores: ['wasm/**/pkg/**'],
+  },
+  {
     files: ['**/*.js'],
     rules: {
       'no-unused-vars': 'off',

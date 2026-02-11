@@ -16,6 +16,83 @@ const latLabel = computed(() => isDesktopOrTablet ? 'Latitude\u200A:' : 'Lat\u20
 const zoomLabel = computed(() => isDesktopOrTablet ? 'Zoom Lv\u200A:' : 'Zoom\u200A:')
 const angleLabel = computed(() => isDesktopOrTablet ? 'Grid Angle\u200A:' : 'Angle\u200A:')
 
+const cornerCoords = computed(() => {
+  if (!mapbox.value.grid) {
+    return {
+      topLeft: '--, --',
+      topRight: '--, --',
+      bottomLeft: '--, --',
+      bottomRight: '--, --',
+    }
+  }
+
+  const { gridCorner } = getPoint(mapbox.value.grid)
+  const format = (value: number) => Number.isFinite(value) ? value.toFixed(5) : '--'
+  const toText = (longitude: number, latitude: number) => `${format(longitude)}, ${format(latitude)}`
+
+  return {
+    topLeft: toText(gridCorner.topleft.Longitude, gridCorner.topleft.Latitude),
+    topRight: toText(gridCorner.topright.Longitude, gridCorner.topright.Latitude),
+    bottomLeft: toText(gridCorner.bottomleft.Longitude, gridCorner.bottomleft.Latitude),
+    bottomRight: toText(gridCorner.bottomright.Longitude, gridCorner.bottomright.Latitude),
+  }
+})
+
+type CornerKey = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight'
+
+const copiedCorner = ref<CornerKey | null>(null)
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
+
+const copyByExecCommand = (text: string) => {
+  if (typeof document === 'undefined') {
+    return false
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  textarea.style.pointerEvents = 'none'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  const copied = document.execCommand('copy')
+  document.body.removeChild(textarea)
+  return copied
+}
+
+const copyCorner = async (corner: CornerKey) => {
+  const value = cornerCoords.value[corner]
+  if (value.includes('--')) {
+    return
+  }
+
+  let copied = false
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      copied = true
+    } catch {
+      copied = copyByExecCommand(value)
+    }
+  } else {
+    copied = copyByExecCommand(value)
+  }
+
+  if (!copied) {
+    return
+  }
+
+  copiedCorner.value = corner
+  if (copiedTimer) {
+    clearTimeout(copiedTimer)
+  }
+  copiedTimer = setTimeout(() => {
+    copiedCorner.value = null
+  }, 1200)
+}
+
 const changeVisibillity = () => {
   if (isDesktopOrTablet) {
     visDesktop.value = !visDesktop.value
@@ -61,6 +138,12 @@ onMounted(() => {
   window.addEventListener('resize', onResize, true)
   heightSet()
 })
+
+onBeforeUnmount(() => {
+  if (copiedTimer) {
+    clearTimeout(copiedTimer)
+  }
+})
 </script>
 
 <template>
@@ -83,6 +166,56 @@ onMounted(() => {
         <NumberInput v-model="mapbox.settings.zoom" :max="22" :min="0" :step="0.01" @change="onZoomChange" />
         <label class="label">{{ angleLabel }}</label>
         <NumberInput v-model="mapbox.settings.angle" :max="180" :min="-180" :step="0.01" @change="onAngleChange" />
+      </div>
+    </section>
+    <section class="corners">
+      <div class="corner-item">
+        <span class="corner-label">Top Left:</span>
+        <button
+          type="button"
+          :disabled="cornerCoords.topLeft.includes('--')"
+          :class="['corner-value', 'copyable', { copied: copiedCorner === 'topLeft' }]"
+          :title="copiedCorner === 'topLeft' ? 'Copied' : 'Click to copy'"
+          @click="copyCorner('topLeft')"
+        >
+          {{ cornerCoords.topLeft }}
+        </button>
+      </div>
+      <div class="corner-item">
+        <span class="corner-label">Top Right:</span>
+        <button
+          type="button"
+          :disabled="cornerCoords.topRight.includes('--')"
+          :class="['corner-value', 'copyable', { copied: copiedCorner === 'topRight' }]"
+          :title="copiedCorner === 'topRight' ? 'Copied' : 'Click to copy'"
+          @click="copyCorner('topRight')"
+        >
+          {{ cornerCoords.topRight }}
+        </button>
+      </div>
+      <div class="corner-item">
+        <span class="corner-label">Bottom Left:</span>
+        <button
+          type="button"
+          :disabled="cornerCoords.bottomLeft.includes('--')"
+          :class="['corner-value', 'copyable', { copied: copiedCorner === 'bottomLeft' }]"
+          :title="copiedCorner === 'bottomLeft' ? 'Copied' : 'Click to copy'"
+          @click="copyCorner('bottomLeft')"
+        >
+          {{ cornerCoords.bottomLeft }}
+        </button>
+      </div>
+      <div class="corner-item">
+        <span class="corner-label">Bottom Right:</span>
+        <button
+          type="button"
+          :disabled="cornerCoords.bottomRight.includes('--')"
+          :class="['corner-value', 'copyable', { copied: copiedCorner === 'bottomRight' }]"
+          :title="copiedCorner === 'bottomRight' ? 'Copied' : 'Click to copy'"
+          @click="copyCorner('bottomRight')"
+        >
+          {{ cornerCoords.bottomRight }}
+        </button>
       </div>
     </section>
     <OverlayScrollbars :class="['setting', { 'm-active': visMobile, 'd-active': visDesktop }]">
@@ -161,6 +294,63 @@ onMounted(() => {
 .label {
   height: 1.5rem;
   line-height: 1.5;
+}
+.corners {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .125rem .75rem;
+  padding: 0 .75rem .375rem;
+  font-size: .75em;
+  @media screen and (max-width: 490px) {
+    grid-template-columns: 1fr;
+  }
+}
+.corner-item {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  min-width: 0;
+}
+.corner-label {
+  flex: 0 0 auto;
+}
+.corner-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 .25rem;
+  line-height: 1.5;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-feature-settings: "tnum";
+}
+.copyable {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: solid 1px transparent;
+  outline: none;
+  color: inherit;
+  font: inherit;
+  background-color: rgba(255, 255, 255, .08);
+  border-radius: .25rem;
+  text-align: left;
+  cursor: pointer;
+  transition: .2s ease;
+  &:hover, &:focus {
+    color: aquamarine;
+    border-color: rgba(127, 255, 212, .7);
+    background-color: rgba(0, 206, 209, .22);
+  }
+  &.copied {
+    color: aquamarine;
+    border-color: rgba(127, 255, 212, .85);
+    background-color: rgba(0, 206, 209, .22);
+  }
+  &:disabled {
+    opacity: .65;
+    cursor: default;
+  }
 }
 .fab {
   -webkit-appearance: none;

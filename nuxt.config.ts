@@ -7,7 +7,15 @@ import type { OutputOptions } from 'rollup'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
-const mapboxToken = process.env.NODE_ENV !== 'production' ? process.env.MAPBOX_TOKEN : process.env.PUBLIC_MAPBOX_TOKEN
+const mapboxToken = process.env.NODE_ENV !== 'production'
+  ? process.env.MAPBOX_TOKEN ?? process.env.PUBLIC_MAPBOX_TOKEN ?? ''
+  : process.env.PUBLIC_MAPBOX_TOKEN ?? process.env.MAPBOX_TOKEN ?? ''
+
+const maptilerToken = process.env.NODE_ENV !== 'production'
+  ? process.env.MAPTILER_TOKEN ?? process.env.PUBLIC_MAPTILER_TOKEN ?? ''
+  : process.env.PUBLIC_MAPTILER_TOKEN ?? process.env.MAPTILER_TOKEN ?? ''
+
+const appBaseURL = process.env.NUXT_APP_BASE_URL ?? '/'
 
 export default defineNuxtConfig({
   devtools: {
@@ -27,6 +35,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       mapboxToken,
+      maptilerToken,
       gtag: '',
     },
   },
@@ -124,6 +133,7 @@ export default defineNuxtConfig({
   },
 
   app: {
+    baseURL: appBaseURL,
     head: {
       htmlAttrs: {
         lang: 'en',
